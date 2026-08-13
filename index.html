@@ -44,7 +44,7 @@ body{
   font-size:16px;
   line-height:1.55;
   -webkit-font-smoothing:antialiased;
-  padding-bottom:150px;
+  padding-bottom:190px;
 }
 .wrap{max-width:780px;margin:0 auto;padding:0 16px}
 
@@ -155,8 +155,8 @@ button.btn:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
   background:rgba(7,68,62,.97);backdrop-filter:blur(10px);color:#EAF4F1;
   border-top:1px solid #0d5c54;padding:10px 0 calc(10px + env(safe-area-inset-bottom));
 }
-.player .wrap{display:flex;align-items:center;gap:12px}
-.player .now{flex:1;min-width:0}
+.player .wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.player .now{flex:1 1 150px;min-width:0}
 .player .now .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7FC4B6}
 .player .now .nmw{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pbtn{width:42px;height:42px;border-radius:50%;border:1px solid #2b7d72;background:#0b5a52;color:#fff;
@@ -1520,7 +1520,16 @@ let voz = null, fila = [], idx = 0, tocando = false, moduloAtual = null, keepAli
 
 function vozesPT(){
   if(!synth) return [];
-  return synth.getVoices().filter(v=>/^pt([-_]|$)/i.test(v.lang));
+  const todas = synth.getVoices();
+  let br = todas.filter(v=>/pt[-_]BR/i.test(v.lang));
+  const base = br.length ? br : todas.filter(v=>/^pt([-_]|$)/i.test(v.lang));
+  const vistos = new Set();
+  return base.filter(v=>{
+    const chave = nomeCurtoVoz(v.name).toLowerCase();
+    if(vistos.has(chave)) return false;
+    vistos.add(chave);
+    return true;
+  });
 }
 function nomeCurtoVoz(n){
   return n.replace(/^(Microsoft|Google)\s+/i,"").split(/\s+[-–(]/)[0].trim();
