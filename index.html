@@ -70,6 +70,18 @@ h1.title em{font-style:normal;color:#7FC4B6}
   display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-family:var(--mono);font-size:12px;color:#A9D6CB;
 }
 .countdown b{display:block;font-size:22px;color:#fff;font-weight:600;letter-spacing:-.02em}
+.upd{
+  align-self:center;margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;background:transparent;border:1px solid #2b7d72;color:#7FC4B6;
+  border-radius:8px;padding:7px 12px;cursor:pointer;
+}
+.upd:active{background:#0b5a52;color:#fff}
+#ptr{
+  height:0;overflow:hidden;display:grid;place-items:center;
+  background:var(--teal-wash);color:var(--teal-deep);
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  transition:height .18s ease;
+}
 
 /* ---------- abas ---------- */
 nav.tabs{
@@ -155,9 +167,10 @@ button.btn:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
   background:rgba(7,68,62,.97);backdrop-filter:blur(10px);color:#EAF4F1;
   border-top:1px solid #0d5c54;padding:10px 0 calc(10px + env(safe-area-inset-bottom));
 }
-.player .wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.player .now{flex:1 1 150px;min-width:0}
-.player .now .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7FC4B6}
+.player .wrap{display:flex;align-items:center;gap:10px}
+.player .ctrls{justify-content:flex-end;margin-top:8px}
+.player .now{flex:1;min-width:0}
+.player .now .lbl{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#7FC4B6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .player .now .nmw{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pbtn{width:42px;height:42px;border-radius:50%;border:1px solid #2b7d72;background:#0b5a52;color:#fff;
   cursor:pointer;display:grid;place-items:center;flex:0 0 auto;font-size:15px}
@@ -266,6 +279,7 @@ footer.foot{padding:34px 0 10px;font-size:12.5px;color:var(--ink-faint);text-ali
       <div><b id="cd-dias">—</b>dias até a prova</div>
       <div><b>50</b>questões · 3h</div>
       <div><b id="cd-prog">0%</b>módulos ouvidos</div>
+      <button class="upd" id="btn-update" aria-label="Atualizar o aplicativo">↻ Atualizar</button>
     </div>
   </div>
   <svg class="ecg" viewBox="0 0 800 34" preserveAspectRatio="none" aria-hidden="true">
@@ -281,6 +295,8 @@ footer.foot{padding:34px 0 10px;font-size:12.5px;color:var(--ink-faint);text-ali
   <button role="tab" aria-selected="false" data-tab="testar">Testar</button>
   <button role="tab" aria-selected="false" data-tab="plano">Plano</button>
 </nav>
+
+<div id="ptr" aria-hidden="true"></div>
 
 <main class="wrap">
 
@@ -347,6 +363,8 @@ footer.foot{padding:34px 0 10px;font-size:12.5px;color:var(--ink-faint);text-ali
       <span class="lbl" id="p-lbl">Nada tocando</span>
       <div class="nmw" id="p-nome">Escolha um módulo em Ouvir</div>
     </div>
+  </div>
+  <div class="wrap ctrls">
     <select class="rate" id="p-voz" aria-label="Voz da narração"></select>
     <select class="rate" id="p-rate" aria-label="Velocidade">
       <option value="0.85">0,85×</option>
@@ -1597,44 +1615,68 @@ function atualizarLinha(){
   $("#p-line").style.width = pct+"%";
 }
 
-let wakeLock = null;
-async function manterTela(ligar){
-  try{
-    if(ligar && 'wakeLock' in navigator){
-      if(!wakeLock) wakeLock = await navigator.wakeLock.request('screen');
-    } else if(!ligar && wakeLock){
-      await wakeLock.release(); wakeLock = null;
-    }
-  }catch(e){ wakeLock = null; }
+/* ---------- player de áudio (MP3 dos módulos) ---------- */
+const player = new Audio();
+player.preload = "metadata";
+let ttsModulo = false; // true quando o MP3 faltou e o módulo cai para a voz sintetizada
+
+function sincronizarBotao(){
+  $("#btn-play").textContent = tocando ? "❚❚" : "▶";
+  $("#btn-play").setAttribute("aria-label", tocando ? "Pausar" : "Reproduzir");
 }
-document.addEventListener('visibilitychange', ()=>{
-  // o navegador derruba o wake lock ao trocar de aba; readquire ao voltar
-  if(document.visibilityState==='visible' && tocando) manterTela(true);
+
+player.addEventListener("timeupdate", ()=>{
+  if(moduloAtual && !ttsModulo && player.duration)
+    $("#p-line").style.width = (player.currentTime/player.duration*100)+"%";
+});
+player.addEventListener("ended", ()=>{ if(moduloAtual && !ttsModulo) pararTudo(true); });
+player.addEventListener("pause", ()=>{ if(moduloAtual && !ttsModulo){ tocando = false; sincronizarBotao(); } });
+player.addEventListener("play",  ()=>{ if(moduloAtual && !ttsModulo){ tocando = true;  sincronizarBotao(); } });
+player.addEventListener("error", ()=>{
+  // MP3 indisponível (ex.: offline): cai para a voz sintetizada do aparelho
+  if(!moduloAtual || ttsModulo) return;
+  const m = MODULOS.find(x=>x.id===moduloAtual);
+  if(!m) return;
+  ttsModulo = true;
+  montarFila(m.audio); idx = 0;
+  tocar();
 });
 
+function mediaSessionMeta(m){
+  if(!('mediaSession' in navigator)) return;
+  try{
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: m.titulo, artist: "LARYX ESTUDYX", album: "Enfermeiro — Jundiaí 2026",
+      artwork: [{src:"icon-512.png", sizes:"512x512", type:"image/png"}]
+    });
+  }catch(e){}
+}
+
 function tocar(){
+  if(moduloAtual && !ttsModulo){
+    player.play().catch(()=>{});
+    return; // os eventos play/pause do <audio> sincronizam o botão
+  }
   if(!synth){ alert("Este navegador não tem síntese de voz. Use o texto do módulo ou gere os MP3 com o roteiro."); return; }
   tocando = true;
-  manterTela(true);
-  $("#btn-play").textContent = "❚❚";
-  $("#btn-play").setAttribute("aria-label","Pausar");
+  sincronizarBotao();
   clearInterval(keepAlive);
   keepAlive = setInterval(()=>{ if(tocando && synth.speaking && !synth.paused){ synth.pause(); synth.resume(); } }, 9000);
   falarAtual();
 }
 function pausar(){
   tocando = false;
-  manterTela(false);
   clearInterval(keepAlive);
   synth && synth.cancel();
-  $("#btn-play").textContent = "▶";
-  $("#btn-play").setAttribute("aria-label","Reproduzir");
+  if(moduloAtual && !ttsModulo) player.pause();
+  sincronizarBotao();
 }
 function pararTudo(concluiu){
   pausar();
   if(concluiu && moduloAtual){
     ST.ouvidos[moduloAtual] = true; save(); renderMods(); atualizarProgresso();
     $("#p-lbl").textContent = "Módulo concluído";
+    if(!ttsModulo) player.currentTime = 0;
   }
   marcarParagrafo(-1);
 }
@@ -1643,12 +1685,35 @@ function abrirModulo(id, autoplay){
   const m = MODULOS.find(x=>x.id===id);
   if(!m) return;
   pausar();
-  moduloAtual = id; idx = 0;
-  montarFila(m.audio);
+  moduloAtual = id; ttsModulo = false; idx = 0;
+  player.src = "audio/" + id + ".mp3";
+  player.playbackRate = parseFloat($("#p-rate").value);
   atualizarLinha();
   $("#p-lbl").textContent = BLOCO[m.bloco] + " · " + TRI[m.tri];
   $("#p-nome").textContent = m.titulo;
-  if(autoplay) tocar();
+  mediaSessionMeta(m);
+  if(autoplay) tocar(); else sincronizarBotao();
+}
+
+function pularModulo(dir){
+  if(!moduloAtual) return;
+  const i = MODULOS.findIndex(x=>x.id===moduloAtual);
+  if(i < 0) return;
+  const prox = MODULOS[(i + dir + MODULOS.length) % MODULOS.length];
+  if(prox) abrirModulo(prox.id, true);
+}
+
+// controles na tela de bloqueio / central de controle
+if('mediaSession' in navigator){
+  const ms = navigator.mediaSession;
+  try{
+    ms.setActionHandler('play',  ()=>tocar());
+    ms.setActionHandler('pause', ()=>pausar());
+    ms.setActionHandler('seekbackward', ()=>{ if(moduloAtual && !ttsModulo) player.currentTime = Math.max(0, player.currentTime-15); });
+    ms.setActionHandler('seekforward',  ()=>{ if(moduloAtual && !ttsModulo) player.currentTime = Math.min(player.duration||0, player.currentTime+15); });
+    ms.setActionHandler('previoustrack', ()=>pularModulo(-1));
+    ms.setActionHandler('nexttrack',     ()=>pularModulo(1));
+  }catch(e){}
 }
 
 /* ---------------- mapa de incidência ---------------- */
@@ -1857,14 +1922,24 @@ $$("nav.tabs button").forEach(b=> b.onclick = ()=>{
   window.scrollTo({top:0, behavior:"instant"});
 });
 
-$("#btn-play").onclick = ()=>{ if(!fila.length){ abrirModulo(MODULOS[0].id, true); return; } tocando? pausar() : tocar(); };
-$("#btn-next").onclick = ()=>{ if(!fila.length) return; const p = fila[idx]?.p ?? 0;
+$("#btn-play").onclick = ()=>{
+  if(!moduloAtual && !fila.length){ abrirModulo(MODULOS[0].id, true); return; }
+  tocando? pausar() : tocar();
+};
+$("#btn-next").onclick = ()=>{
+  if(moduloAtual && !ttsModulo){ player.currentTime = Math.min(player.duration||0, player.currentTime+15); return; }
+  if(!fila.length) return; const p = fila[idx]?.p ?? 0;
   while(idx<fila.length && fila[idx].p===p) idx++;
   if(tocando){ synth.cancel(); falarAtual(); } else marcarParagrafo(fila[idx]?.p ?? -1); atualizarLinha(); };
-$("#btn-prev").onclick = ()=>{ if(!fila.length) return; const p = fila[idx]?.p ?? 0; const alvo = Math.max(0,p-1);
+$("#btn-prev").onclick = ()=>{
+  if(moduloAtual && !ttsModulo){ player.currentTime = Math.max(0, player.currentTime-15); return; }
+  if(!fila.length) return; const p = fila[idx]?.p ?? 0; const alvo = Math.max(0,p-1);
   idx = fila.findIndex(f=>f.p===alvo); if(idx<0) idx=0;
   if(tocando){ synth.cancel(); falarAtual(); } else marcarParagrafo(alvo); atualizarLinha(); };
-$("#p-rate").onchange = ()=>{ if(tocando){ synth.cancel(); falarAtual(); } };
+$("#p-rate").onchange = ()=>{
+  player.playbackRate = parseFloat($("#p-rate").value);
+  if(tocando && (ttsModulo || !moduloAtual)){ synth.cancel(); falarAtual(); }
+};
 $("#p-voz").onchange = e=>{
   const vs = vozesPT();
   voz = vs.find(v=>v.voiceURI===e.target.value) || voz;
@@ -1880,6 +1955,40 @@ $("#reset-plano").onclick = ()=>{
   if(!confirm("Desmarcar todas as tarefas do plano de 8 semanas?")) return;
   ST.tarefas = {}; save(); renderPlano();
 };
+
+/* ---------- atualização do app ---------- */
+async function atualizarApp(){
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    if(reg) await reg.update();
+  }catch(e){}
+  location.reload();
+}
+$("#btn-update").onclick = atualizarApp;
+
+// puxar para baixo no topo da página também atualiza
+(function(){
+  const ptr = $("#ptr");
+  let puxando = false, inicioY = 0, dist = 0;
+  window.addEventListener("touchstart", e=>{
+    if(window.scrollY <= 0){ puxando = true; inicioY = e.touches[0].clientY; dist = 0; }
+  }, {passive:true});
+  window.addEventListener("touchmove", e=>{
+    if(!puxando) return;
+    dist = e.touches[0].clientY - inicioY;
+    if(dist > 0 && window.scrollY <= 0){
+      ptr.style.height = Math.min(dist/2.2, 72) + "px";
+      ptr.textContent = dist > 130 ? "Solte para atualizar" : "Puxe para atualizar";
+    }
+  }, {passive:true});
+  window.addEventListener("touchend", ()=>{
+    if(!puxando) return;
+    puxando = false;
+    const solta = dist > 130;
+    ptr.style.height = "0";
+    if(solta) atualizarApp();
+  });
+})();
 window.addEventListener("beforeunload", ()=> synth && synth.cancel());
 
 (async function boot(){

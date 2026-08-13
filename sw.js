@@ -1,4 +1,4 @@
-const CACHE = 'estudo-jundiai-v4';
+const CACHE = 'estudo-jundiai-v5';
 const CORE = [
   './',
   './index.html',
@@ -26,6 +26,11 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+
+  const url = new URL(e.request.url);
+
+  // MP3: streaming direto da rede (o Cache API não lida bem com Range requests).
+  if (url.pathname.endsWith('.mp3')) return;
 
   // HTML: tenta a rede primeiro (para pegar atualizações), cai no cache offline.
   if (e.request.mode === 'navigate' || e.request.destination === 'document') {
