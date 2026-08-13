@@ -1597,9 +1597,25 @@ function atualizarLinha(){
   $("#p-line").style.width = pct+"%";
 }
 
+let wakeLock = null;
+async function manterTela(ligar){
+  try{
+    if(ligar && 'wakeLock' in navigator){
+      if(!wakeLock) wakeLock = await navigator.wakeLock.request('screen');
+    } else if(!ligar && wakeLock){
+      await wakeLock.release(); wakeLock = null;
+    }
+  }catch(e){ wakeLock = null; }
+}
+document.addEventListener('visibilitychange', ()=>{
+  // o navegador derruba o wake lock ao trocar de aba; readquire ao voltar
+  if(document.visibilityState==='visible' && tocando) manterTela(true);
+});
+
 function tocar(){
   if(!synth){ alert("Este navegador não tem síntese de voz. Use o texto do módulo ou gere os MP3 com o roteiro."); return; }
   tocando = true;
+  manterTela(true);
   $("#btn-play").textContent = "❚❚";
   $("#btn-play").setAttribute("aria-label","Pausar");
   clearInterval(keepAlive);
@@ -1608,6 +1624,7 @@ function tocar(){
 }
 function pausar(){
   tocando = false;
+  manterTela(false);
   clearInterval(keepAlive);
   synth && synth.cancel();
   $("#btn-play").textContent = "▶";
