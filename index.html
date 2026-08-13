@@ -165,6 +165,7 @@ button.btn:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
 .pbtn:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .rate{font-family:var(--mono);font-size:12px;background:#0b5a52;color:#EAF4F1;border:1px solid #2b7d72;
   border-radius:8px;padding:6px 8px}
+#p-voz{max-width:120px;text-overflow:ellipsis}
 .pline{height:3px;background:#0b5a52;border-radius:2px;margin-top:9px;overflow:hidden}
 .pline i{display:block;height:100%;background:#7FC4B6;width:0}
 
@@ -313,12 +314,14 @@ footer.foot{padding:34px 0 10px;font-size:12.5px;color:var(--ink-faint);text-ali
     <p class="lede">Cinco alternativas, enunciado curto, uma pegadinha por questão — o formato da VUNESP. Responda e leia o comentário mesmo quando acertar.</p>
     <div class="deckbar" id="filtros-q"></div>
     <div class="score" id="score">Respondidas 0 · Acertos 0</div>
+    <div class="deckbar"><button class="chip" id="reset-q">↺ Zerar respostas</button></div>
     <div id="questoes"></div>
   </section>
 
   <section class="panel" id="p-plano" role="tabpanel">
     <h2 class="sec">Plano de 8 semanas</h2>
     <p class="lede">Desenhado para 1h por dia útil e um bloco maior no fim de semana. Se um dia cair, não recomece: pule para o dia certo do calendário.</p>
+    <div class="deckbar"><button class="chip" id="reset-plano">↺ Desmarcar todas as tarefas</button></div>
     <div id="plano"></div>
     <div class="note"><b>A regra que decide a aprovação:</b> é preciso 50 pontos no total <b>e</b> não zerar Conhecimentos Específicos. Como 25 das 50 questões são de Enfermagem, cada ponto ali vale o dobro em esforço economizado. Português é 15 questões e quase metade é interpretação de texto — treinar leitura rende mais que decorar gramática.</div>
   </section>
@@ -344,6 +347,7 @@ footer.foot{padding:34px 0 10px;font-size:12.5px;color:var(--ink-faint);text-ali
       <span class="lbl" id="p-lbl">Nada tocando</span>
       <div class="nmw" id="p-nome">Escolha um módulo em Ouvir</div>
     </div>
+    <select class="rate" id="p-voz" aria-label="Voz da narração"></select>
     <select class="rate" id="p-rate" aria-label="Velocidade">
       <option value="0.85">0,85×</option>
       <option value="1" selected>1×</option>
@@ -1511,14 +1515,30 @@ function diasRestantes(){
 
 /* ---------------- narração ---------------- */
 const synth = window.speechSynthesis;
+const VOZ_KEY = "enf-jundiai-2026-voz";
 let voz = null, fila = [], idx = 0, tocando = false, moduloAtual = null, keepAlive = null;
 
+function vozesPT(){
+  if(!synth) return [];
+  return synth.getVoices().filter(v=>/^pt([-_]|$)/i.test(v.lang));
+}
+function nomeCurtoVoz(n){
+  return n.replace(/^(Microsoft|Google)\s+/i,"").split(/\s+[-–(]/)[0].trim();
+}
 function escolherVoz(){
   if(!synth) return;
-  const vs = synth.getVoices();
-  voz = vs.find(v=>/pt[-_]BR/i.test(v.lang) && /google|luciana|francisca|natural/i.test(v.name))
+  const vs = vozesPT();
+  let salva = mem[VOZ_KEY] ?? null;
+  if(salva===null){ try{ salva = window.localStorage.getItem(VOZ_KEY); }catch(e){} }
+  voz = vs.find(v=>v.voiceURI===salva)
+     || vs.find(v=>/natural|online|google|francisca|heloisa|maria|luciana|brenda|leticia/i.test(v.name))
      || vs.find(v=>/pt[-_]BR/i.test(v.lang))
-     || vs.find(v=>/^pt/i.test(v.lang)) || null;
+     || vs[0] || null;
+  const sel = $("#p-voz");
+  if(sel){
+    sel.innerHTML = vs.map(v=>`<option value="${v.voiceURI}" ${voz && v.voiceURI===voz.voiceURI?"selected":""}>${nomeCurtoVoz(v.name)}</option>`).join("")
+      || `<option value="">Voz padrão</option>`;
+  }
 }
 if(synth){ escolherVoz(); synth.onvoiceschanged = escolherVoz; }
 
@@ -1557,7 +1577,7 @@ function falarAtual(){
   if(voz) u.voice = voz;
   u.lang = "pt-BR";
   u.rate = parseFloat($("#p-rate").value);
-  u.pitch = 1;
+  u.pitch = 1.05;
   u.onend = ()=>{ if(tocando){ idx++; atualizarLinha(); falarAtual(); } };
   u.onerror = ()=>{ if(tocando){ idx++; falarAtual(); } };
   synth.speak(u);
@@ -1819,6 +1839,21 @@ $("#btn-prev").onclick = ()=>{ if(!fila.length) return; const p = fila[idx]?.p ?
   idx = fila.findIndex(f=>f.p===alvo); if(idx<0) idx=0;
   if(tocando){ synth.cancel(); falarAtual(); } else marcarParagrafo(alvo); atualizarLinha(); };
 $("#p-rate").onchange = ()=>{ if(tocando){ synth.cancel(); falarAtual(); } };
+$("#p-voz").onchange = e=>{
+  const vs = vozesPT();
+  voz = vs.find(v=>v.voiceURI===e.target.value) || voz;
+  mem[VOZ_KEY] = e.target.value;
+  try{ window.localStorage.setItem(VOZ_KEY, e.target.value); }catch(err){}
+  if(tocando){ synth.cancel(); falarAtual(); }
+};
+$("#reset-q").onclick = ()=>{
+  if(!confirm("Apagar todas as respostas das questões? Isso não pode ser desfeito.")) return;
+  ST.resp = {}; save(); renderQuestoes();
+};
+$("#reset-plano").onclick = ()=>{
+  if(!confirm("Desmarcar todas as tarefas do plano de 8 semanas?")) return;
+  ST.tarefas = {}; save(); renderPlano();
+};
 window.addEventListener("beforeunload", ()=> synth && synth.cancel());
 
 (async function boot(){
@@ -1835,7 +1870,17 @@ window.addEventListener("beforeunload", ()=> synth && synth.cancel());
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){
-    navigator.serviceWorker.register('sw.js').catch(function(){});
+    navigator.serviceWorker.register('sw.js').then(function(reg){
+      reg.update(); // checa atualização a cada abertura
+      setInterval(function(){ reg.update(); }, 60000); // e a cada minuto com o app aberto
+    }).catch(function(){});
+    var tinhaSW = !!navigator.serviceWorker.controller, recarregou = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function(){
+      // nova versão assumiu: recarrega uma vez para exibir o app atualizado
+      if(!tinhaSW || recarregou) return;
+      recarregou = true;
+      window.location.reload();
+    });
   });
 }
 </script>
