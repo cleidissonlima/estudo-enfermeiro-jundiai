@@ -1,4 +1,4 @@
-const CACHE = 'estudo-jundiai-v1';
+const CACHE = 'estudo-jundiai-v2';
 const CORE = [
   './',
   './index.html',

@@ -6,11 +6,11 @@
 <meta name="theme-color" content="#07443E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Estudo Jundiaí">
+<meta name="apple-mobile-web-app-title" content="LARYX ESTUDYX">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<title>Sala de Estudo — Enfermeiro / Jundiaí 2026</title>
+<title>LARYX ESTUDYX — Enfermeiro / Jundiaí 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -229,6 +229,22 @@ button.btn:focus-visible{outline:2px solid var(--teal-deep);outline-offset:2px}
 .note{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:14px 16px;font-size:14.5px;color:var(--ink-soft);margin:16px 0}
 .note b{color:var(--ink)}
 footer.foot{padding:34px 0 10px;font-size:12.5px;color:var(--ink-faint);text-align:center}
+.credit{
+  margin:0 auto 22px;max-width:420px;background:var(--teal-deep);color:#EAF4F1;
+  border-radius:16px;padding:20px 18px;box-shadow:var(--shadow);
+}
+.credit .c-eyebrow{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:#7FC4B6;margin:0 0 8px;
+}
+.credit .c-nome{font-family:var(--disp);font-weight:800;font-size:19px;letter-spacing:-.01em;margin:0}
+.credit .c-cargo{font-size:13px;color:#A9D6CB;margin:2px 0 0}
+.credit .c-empresa{font-family:var(--mono);font-size:12px;color:#7FC4B6;margin:10px 0 0;letter-spacing:.04em}
+.credit .c-para{
+  margin:14px 0 0;padding-top:12px;border-top:1px solid rgba(127,196,182,.3);
+  font-size:13.5px;color:#EAF4F1;
+}
+.credit .c-para b{font-family:var(--disp);color:#fff}
 
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 @media (max-width:480px){
@@ -242,7 +258,7 @@ footer.foot{padding:34px 0 10px;font-size:12.5px;color:var(--ink-faint);text-ali
 <header class="top">
   <div class="wrap">
     <p class="eyebrow">Edital 302/2026 · VUNESP · Prova 11/10/2026</p>
-    <h1 class="title">Sala de estudo<br><em>Enfermeiro — Jundiaí</em></h1>
+    <h1 class="title">LARYX ESTUDYX<br><em>Enfermeiro — Jundiaí</em></h1>
     <div class="countdown">
       <div><b id="cd-dias">—</b>dias até a prova</div>
       <div><b>50</b>questões · 3h</div>
@@ -305,6 +321,13 @@ footer.foot{padding:34px 0 10px;font-size:12.5px;color:var(--ink-faint);text-ali
     <div class="note"><b>A regra que decide a aprovação:</b> é preciso 50 pontos no total <b>e</b> não zerar Conhecimentos Específicos. Como 25 das 50 questões são de Enfermagem, cada ponto ali vale o dobro em esforço economizado. Português é 15 questões e quase metade é interpretação de texto — treinar leitura rende mais que decorar gramática.</div>
   </section>
 
+  <div class="credit">
+    <p class="c-eyebrow">Desenvolvido por</p>
+    <p class="c-nome">Cleidisson Lima</p>
+    <p class="c-cargo">Analista e Desenvolvedor de Software</p>
+    <p class="c-empresa">KarbYX | Tecnologia Ltda</p>
+    <p class="c-para">Para: <b>Larissa Panucci</b></p>
+  </div>
   <footer class="foot">Material de estudo · dados de incidência a partir de provas VUNESP anteriores · sempre confira a redação oficial das leis citadas.</footer>
 </main>
 
