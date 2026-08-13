@@ -1,8 +1,9 @@
-const CACHE = 'estudo-jundiai-v2';
+const CACHE = 'estudo-jundiai-v3';
 const CORE = [
   './',
   './index.html',
   './manifest.json',
+  './karbyx-logo.png',
   './icon-180.png',
   './icon-192.png',
   './icon-512.png',
